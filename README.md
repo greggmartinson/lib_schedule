@@ -15,6 +15,7 @@ It supports:
 
 - A one-click Streamlit dashboard button (`Refresh Today's Summary`)
 - Printable HTML output for display screens and paper
+- Optional ICS calendar events on the dashboard, printable report, and slide deck
 - One-time login capture, so credentials are not stored in code
 - Optional Google Slides sync for a live slide deck
 
@@ -35,6 +36,7 @@ Update `config/settings.yaml` if you need:
 - `schedule_table_selector` (if parser cannot find the right table)
 - `drop_first_period_rows` and `drop_last_period_rows` to trim extra rows
 - `room_aliases` for any header text variations
+- `ics_calendars` settings for today's extra calendar events across one or more room feeds
 - `google_slides` settings for the live presentation sync
 
 ## 2) One-time login
@@ -144,6 +146,8 @@ If `.venv` exists, the script will automatically rerun itself with `.venv/bin/py
 ## 5) Google Slides Sync
 
 This project can also rebuild slide 2 of the Google Slides deck in `config/settings.yaml` using your condensed daily summary.
+If `ics_calendars` is configured, the same daily run also checks those room feeds for the report date and adds a combined events section to the printable report and the slide deck.
+If some rooms are blank, that just means there are no events for those feeds that day.
 
 ### Recommended setup: Apps Script with your normal browser login
 

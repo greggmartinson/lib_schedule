@@ -2,6 +2,7 @@ const PRESENTATION_ID = '12lNrWDhZ95yRpCrf2LoMvkxFhbHJz7WEUAv-asPhgdU';
 const DEFAULT_SLIDE_INDEX = 2;
 const SLIDE_WIDTH = 960;
 const SLIDE_HEIGHT = 540;
+const MAX_CALENDAR_EVENTS = 4;
 
 const COLORS = {
   background: '#FFFFFF',
@@ -61,6 +62,7 @@ function updateScheduleSlide_(payload) {
   const presentationId = payload.presentationId || PRESENTATION_ID;
   const slideIndex = Number(payload.slideIndex || DEFAULT_SLIDE_INDEX);
   const rooms = Array.isArray(payload.rooms) ? payload.rooms : [];
+  const calendar = payload.calendar || null;
   const reportDateLabel = String(payload.reportDateLabel || '');
   const generatedAtLabel = String(payload.generatedAtLabel || '');
 
@@ -77,7 +79,7 @@ function updateScheduleSlide_(payload) {
   renderBackground_(slide);
   renderAccentStripes_(slide);
   renderTitle_(slide, reportDateLabel, generatedAtLabel);
-  renderScheduleTable_(slide, rooms);
+  renderScheduleTable_(slide, rooms, calendar);
   presentation.saveAndClose();
 
   return {
@@ -152,7 +154,7 @@ function renderTitle_(slide, reportDateLabel, generatedAtLabel) {
   });
 }
 
-function renderScheduleTable_(slide, rooms) {
+function renderScheduleTable_(slide, rooms, calendar) {
   const columns = 3;
   const tableLeft = 18;
   const tableTop = 120;
@@ -160,23 +162,31 @@ function renderScheduleTable_(slide, rooms) {
   const headerHeight = 62;
   const bodyHeight = 74;
   const cellWidth = tableWidth / columns;
-  const rowGroups = Math.ceil(Math.max(rooms.length, 1) / columns);
+  const cards = rooms.slice();
+  if (calendar) {
+    cards.push({
+      name: formatCalendarHeading_(calendar),
+      calendar: calendar,
+    });
+  }
+  const rowGroups = Math.ceil(Math.max(cards.length, 1) / columns);
 
   for (let row = 0; row < rowGroups; row += 1) {
     for (let column = 0; column < columns; column += 1) {
-      const room = rooms[row * columns + column] || null;
+      const card = cards[row * columns + column] || null;
       const left = tableLeft + column * cellWidth;
       const headerTop = tableTop + row * (headerHeight + bodyHeight);
       const bodyTop = headerTop + headerHeight;
 
-      renderTableHeaderCell_(slide, left, headerTop, cellWidth, headerHeight, room);
-      renderTableBodyCell_(slide, left, bodyTop, cellWidth, bodyHeight, room);
+      renderTableHeaderCell_(slide, left, headerTop, cellWidth, headerHeight, card);
+      renderTableBodyCell_(slide, left, bodyTop, cellWidth, bodyHeight, card);
     }
   }
 }
 
-function renderTableHeaderCell_(slide, left, top, width, height, room) {
-  const shape = slide.insertTextBox(room ? String(room.name || '') : '', left, top, width, height);
+function renderTableHeaderCell_(slide, left, top, width, height, card) {
+  const headerText = card ? String(card.name || '') : '';
+  const shape = slide.insertTextBox(headerText, left, top, width, height);
   shape.getFill().setSolidFill(COLORS.headerFill);
   shape.getBorder().getLineFill().setSolidFill(COLORS.divider);
   shape.getBorder().setWeight(1);
@@ -185,13 +195,20 @@ function renderTableHeaderCell_(slide, left, top, width, height, room) {
     fontFamily: 'Arial',
     fontSize: 16,
     color: COLORS.headerText,
-    boldUntil: room ? String(room.name || '').length : 0,
+    boldUntil: headerText.length,
     boldFontSize: 16,
   });
 }
 
-function renderTableBodyCell_(slide, left, top, width, height, room) {
-  const text = room ? formatRoomBodyText_(room) : '';
+function renderTableBodyCell_(slide, left, top, width, height, card) {
+  let text = '';
+  if (card) {
+    if (card.calendar) {
+      text = formatCalendarBodyText_(card.calendar);
+    } else {
+      text = formatRoomBodyText_(card);
+    }
+  }
   const shape = slide.insertTextBox(text, left, top, width, height);
   shape.getFill().setSolidFill(COLORS.bodyFill);
   shape.getBorder().getLineFill().setSolidFill(COLORS.divider);
@@ -217,6 +234,48 @@ function formatRoomBodyText_(room) {
     parts.push(String(entry.when || ''));
     parts.push('');
   });
+  return parts.join('\n').replace(/\n$/, '');
+}
+
+function formatCalendarHeading_(calendar) {
+  const sourceName = String((calendar && calendar.sourceName) || '').trim();
+  return sourceName ? sourceName + ' Events' : 'Calendar Events';
+}
+
+function formatCalendarBodyText_(calendar) {
+  const statusNote = String((calendar && calendar.statusNote) || '').trim();
+  if (statusNote) {
+    return statusNote;
+  }
+
+  const events = Array.isArray(calendar && calendar.events) ? calendar.events : [];
+  if (!events.length) {
+    return 'No calendar events today.';
+  }
+
+  const parts = [];
+  events.slice(0, MAX_CALENDAR_EVENTS).forEach(function (event) {
+    const title = String((event && event.title) || '').trim();
+    if (!title) {
+      return;
+    }
+    parts.push(title);
+
+    let detailLine = String((event && event.when) || '').trim();
+    const details = String((event && event.details) || '').trim();
+    if (details) {
+      detailLine = detailLine ? detailLine + ' | ' + details : details;
+    }
+    if (detailLine) {
+      parts.push(detailLine);
+    }
+    parts.push('');
+  });
+
+  const remaining = events.length - MAX_CALENDAR_EVENTS;
+  if (remaining > 0) {
+    parts.push('+' + remaining + ' more');
+  }
   return parts.join('\n').replace(/\n$/, '');
 }
 

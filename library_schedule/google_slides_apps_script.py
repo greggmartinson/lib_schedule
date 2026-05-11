@@ -10,7 +10,7 @@ import webbrowser
 from .booking_text import clean_booking_for_display
 from .config import GoogleSlidesConfig
 from .google_slides import extract_presentation_id
-from .model import CondensedScheduleSummary
+from .model import CalendarAgenda, CondensedScheduleSummary
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,7 @@ def sync_condensed_summary_via_apps_script(
     config: GoogleSlidesConfig,
     output_dir: str | Path,
     open_browser: bool = True,
+    calendar_agenda: CalendarAgenda | None = None,
 ) -> AppsScriptSyncResult:
     web_app_url = (config.apps_script_web_app_url or "").strip()
     if not web_app_url:
@@ -34,7 +35,7 @@ def sync_condensed_summary_via_apps_script(
             "config/settings.yaml is missing google_slides.apps_script_web_app_url"
         )
 
-    payload = build_apps_script_payload(summary, config)
+    payload = build_apps_script_payload(summary, config, calendar_agenda=calendar_agenda)
     submit_page_path = write_apps_script_submit_page(
         payload=payload,
         web_app_url=web_app_url,
@@ -57,9 +58,10 @@ def sync_condensed_summary_via_apps_script(
 def build_apps_script_payload(
     summary: CondensedScheduleSummary,
     config: GoogleSlidesConfig,
+    calendar_agenda: CalendarAgenda | None = None,
 ) -> dict:
     generated_at = datetime.now()
-    return {
+    payload = {
         "presentationId": extract_presentation_id(config.presentation_url),
         "slideIndex": config.slide_index,
         "reportDateIso": summary.report_date.isoformat(),
@@ -76,6 +78,20 @@ def build_apps_script_payload(
             for room_name in summary.spaces
         ],
     }
+    if calendar_agenda is not None:
+        payload["calendar"] = {
+            "sourceName": calendar_agenda.source_name,
+            "statusNote": calendar_agenda.status_note,
+            "events": [
+                {
+                    "title": event.title,
+                    "when": event.when,
+                    "details": event.details,
+                }
+                for event in calendar_agenda.events
+            ],
+        }
+    return payload
 
 
 def write_apps_script_submit_page(

@@ -42,6 +42,23 @@ auth:
 browser_timeout_ms: 45000
 default_headless: true
 
+ics_calendars:
+  - url: "https://roseville.arux.app/admin/facilities/parts/ical?location_type=Room&location_id=460"
+    timezone: "America/Chicago"
+    display_name: "Media Center - Center & Comp Lab"
+  - url: "https://roseville.arux.app/admin/facilities/parts/ical?location_type=Room&location_id=513"
+    timezone: "America/Chicago"
+    display_name: "C220 - Media Center"
+  - url: "https://roseville.arux.app/admin/facilities/parts/ical?location_type=Room&location_id=883"
+    timezone: "America/Chicago"
+    display_name: "Media Center - Mpls Conf Room"
+  - url: "https://roseville.arux.app/admin/facilities/parts/ical?location_type=Room&location_id=884"
+    timezone: "America/Chicago"
+    display_name: "Media Center - St Paul Conf Room"
+  - url: "https://roseville.arux.app/admin/facilities/parts/ical?location_type=Room&location_id=946"
+    timezone: "America/Chicago"
+    display_name: "Media Center - C221 Conf Room"
+
 google_slides:
   presentation_url: "https://docs.google.com/presentation/d/12lNrWDhZ95yRpCrf2LoMvkxFhbHJz7WEUAv-asPhgdU/edit?slide=id.g3e7c148e447_1_0#slide=id.g3e7c148e447_1_0"
   slide_index: 2

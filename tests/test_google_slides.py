@@ -1,10 +1,15 @@
 from __future__ import annotations
 
+from datetime import date
 import unittest
 
 from library_schedule.booking_text import clean_booking_for_display
-from library_schedule.google_slides import extract_presentation_id, format_room_card_text
-from library_schedule.model import SummaryEntry
+from library_schedule.google_slides import (
+    extract_presentation_id,
+    format_calendar_card_text,
+    format_room_card_text,
+)
+from library_schedule.model import CalendarAgenda, CalendarEvent, SummaryEntry
 
 
 class GoogleSlidesTests(unittest.TestCase):
@@ -35,6 +40,24 @@ class GoogleSlidesTests(unittest.TestCase):
 
     def test_formats_free_room_card_text(self) -> None:
         self.assertEqual(format_room_card_text("MC C220.7", []), "MC C220.7\nFree all day")
+
+    def test_formats_calendar_card_text(self) -> None:
+        agenda = CalendarAgenda(
+            report_date=date(2026, 5, 11),
+            source_name="Mpls Conf Room",
+            events=[
+                CalendarEvent(
+                    title="Homeroom 3rd hour planning",
+                    when="2:50 PM - 3:30 PM",
+                    details="Jen Wilson",
+                )
+            ],
+        )
+
+        self.assertEqual(
+            format_calendar_card_text(agenda),
+            "Mpls Conf Room Events\nHomeroom 3rd hour planning\n2:50 PM - 3:30 PM | Jen Wilson",
+        )
 
     def test_strips_directory_style_suffixes(self) -> None:
         self.assertEqual(clean_booking_for_display("LaTrell Williams SMITHDEL001"), "LaTrell Williams")

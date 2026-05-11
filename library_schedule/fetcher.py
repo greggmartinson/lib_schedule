@@ -5,6 +5,7 @@ import time
 import re
 from urllib.parse import urljoin
 
+from playwright.sync_api import Error as PlaywrightError
 from playwright.sync_api import sync_playwright
 
 from .config import AppConfig
@@ -111,7 +112,12 @@ def _wait_for_authenticated_schedule_page(page, config: AppConfig) -> None:
         if page.is_closed():
             raise AuthRequiredError("Login browser window was closed before authentication completed.")
 
-        html = page.content()
+        # During SSO redirects Playwright can briefly fail to read content while the
+        # page is still navigating. Treat that as a transient state and keep waiting.
+        try:
+            html = page.content()
+        except PlaywrightError:
+            continue
         if _looks_like_schedule_page(page.url, html, config):
             return
 

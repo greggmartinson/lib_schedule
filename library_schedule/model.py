@@ -35,3 +35,19 @@ class CondensedScheduleSummary:
     report_date: date
     spaces: list[str]
     by_space: dict[str, list[SummaryEntry]]
+
+
+@dataclass(frozen=True)
+class CalendarEvent:
+    title: str
+    when: str
+    details: str | None = None
+    sort_key: str | None = None
+
+
+@dataclass(frozen=True)
+class CalendarAgenda:
+    report_date: date
+    source_name: str
+    events: list[CalendarEvent]
+    status_note: str | None = None

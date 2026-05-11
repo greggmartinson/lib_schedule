@@ -28,6 +28,13 @@ class GoogleSlidesConfig:
 
 
 @dataclass(frozen=True)
+class IcsCalendarConfig:
+    url: str
+    timezone: str
+    display_name: str | None
+
+
+@dataclass(frozen=True)
 class AppConfig:
     schedule_url: str
     target_spaces: list[str]
@@ -39,6 +46,7 @@ class AppConfig:
     browser_timeout_ms: int
     default_headless: bool
     google_slides: GoogleSlidesConfig | None
+    ics_calendars: list[IcsCalendarConfig]
 
 
 def load_config(path: str | Path) -> AppConfig:
@@ -59,6 +67,7 @@ def load_config(path: str | Path) -> AppConfig:
     timeout_ms = int(raw.get("browser_timeout_ms", 45000))
     default_headless = bool(raw.get("default_headless", True))
     google_slides = _load_google_slides_config(raw.get("google_slides"))
+    ics_calendars = _load_ics_calendar_configs(raw)
 
     return AppConfig(
         schedule_url=schedule_url,
@@ -71,6 +80,7 @@ def load_config(path: str | Path) -> AppConfig:
         browser_timeout_ms=timeout_ms,
         default_headless=default_headless,
         google_slides=google_slides,
+        ics_calendars=ics_calendars,
     )
 
 
@@ -123,3 +133,39 @@ def _load_google_slides_config(value: object) -> GoogleSlidesConfig | None:
         oauth_token_path=token_path,
         apps_script_web_app_url=web_app_url,
     )
+
+
+def _load_ics_calendar_config(value: object) -> IcsCalendarConfig | None:
+    if not isinstance(value, dict):
+        return None
+
+    url = str(value.get("url", "")).strip()
+    if not url:
+        return None
+
+    timezone = str(value.get("timezone", "America/Chicago")).strip() or "America/Chicago"
+    display_name = str(value.get("display_name", "")).strip() or None
+    return IcsCalendarConfig(
+        url=url,
+        timezone=timezone,
+        display_name=display_name,
+    )
+
+
+def _load_ics_calendar_configs(raw: dict[str, object]) -> list[IcsCalendarConfig]:
+    configs: list[IcsCalendarConfig] = []
+
+    multi_value = raw.get("ics_calendars")
+    if isinstance(multi_value, list):
+        for item in multi_value:
+            config = _load_ics_calendar_config(item)
+            if config is not None:
+                configs.append(config)
+        if configs:
+            return configs
+
+    single_value = raw.get("ics_calendar")
+    config = _load_ics_calendar_config(single_value)
+    if config is not None:
+        configs.append(config)
+    return configs

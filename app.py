@@ -8,8 +8,15 @@ from library_schedule.condense import build_condensed_summary
 from library_schedule.config import load_config
 from library_schedule.debug import save_fetch_debug_artifacts
 from library_schedule.fetcher import AuthRequiredError, fetch_schedule_pages
+from library_schedule.ics_calendar import (
+    fetch_calendar_agenda_bundle,
+)
 from library_schedule.parser import ParseError, parse_schedule_pages
-from library_schedule.report import render_html_report, render_summary_table_fragment
+from library_schedule.report import (
+    render_calendar_agenda_fragment,
+    render_html_report,
+    render_summary_table_fragment,
+)
 from library_schedule.transform import trim_summary_rows
 
 
@@ -87,15 +94,29 @@ def main() -> None:
         rows.append(row)
 
     condensed = build_condensed_summary(summary)
+    calendar_agenda = None
+    if config.ics_calendars:
+        calendar_agenda, calendar_warnings = fetch_calendar_agenda_bundle(
+            config.ics_calendars,
+            summary.report_date,
+        )
+        for warning in calendar_warnings:
+            st.warning(warning)
+
     st.success(f"Loaded from {resolved_url}")
     st.markdown(
         render_summary_table_fragment(condensed, include_styles=True),
         unsafe_allow_html=True,
     )
+    if calendar_agenda is not None:
+        st.markdown(
+            render_calendar_agenda_fragment(calendar_agenda, include_styles=True),
+            unsafe_allow_html=True,
+        )
     with st.expander("Detailed slot-by-slot view"):
         st.dataframe(rows, use_container_width=True, hide_index=True)
 
-    report_html = render_html_report(summary)
+    report_html = render_html_report(summary, calendar_agenda=calendar_agenda)
     output_dir = Path("output")
     output_dir.mkdir(parents=True, exist_ok=True)
     output_path = output_dir / f"daily_schedule_{summary.report_date.isoformat()}.html"

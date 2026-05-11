@@ -22,6 +22,9 @@ try:
     from library_schedule.config import load_config
     from library_schedule.debug import save_fetch_debug_artifacts
     from library_schedule.fetcher import AuthRequiredError, fetch_schedule_pages
+    from library_schedule.ics_calendar import (
+        fetch_calendar_agenda_bundle,
+    )
     from library_schedule.parser import ParseError, parse_schedule_pages
     from library_schedule.report import render_html_report
     from library_schedule.transform import trim_summary_rows
@@ -77,9 +80,21 @@ def main() -> int:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    calendar_agenda = None
+    if config.ics_calendars:
+        calendar_agenda, calendar_warnings = fetch_calendar_agenda_bundle(
+            config.ics_calendars,
+            summary.report_date,
+        )
+        for warning in calendar_warnings:
+            print(f"Warning: {warning}")
+
     debug_dir = save_fetch_debug_artifacts(fetched_pages)
     out_path = output_dir / f"daily_schedule_{summary.report_date.isoformat()}.html"
-    out_path.write_text(render_html_report(summary), encoding="utf-8")
+    out_path.write_text(
+        render_html_report(summary, calendar_agenda=calendar_agenda),
+        encoding="utf-8",
+    )
 
     hidden_booking_count = _count_booked_slots(raw_summary) - _count_booked_slots(summary)
     resolved_url = fetched_pages[0].final_url if fetched_pages else config.schedule_url

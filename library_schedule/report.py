@@ -5,7 +5,7 @@ from html import escape
 
 from .booking_text import clean_booking_for_display
 from .condense import build_condensed_summary
-from .model import CondensedScheduleSummary, ScheduleSummary
+from .model import CalendarAgenda, CondensedScheduleSummary, ScheduleSummary
 
 
 def render_summary_table_fragment(
@@ -45,11 +45,54 @@ def render_summary_table_fragment(
     return _summary_table_styles() + table_html
 
 
-def render_html_report(summary: ScheduleSummary) -> str:
+def render_calendar_agenda_fragment(
+    agenda: CalendarAgenda,
+    include_styles: bool = False,
+) -> str:
+    heading = f"{agenda.source_name} Events"
+    if agenda.status_note:
+        body_html = f"<div class='calendar-empty'>{escape(agenda.status_note)}</div>"
+    elif not agenda.events:
+        body_html = "<div class='calendar-empty'>No calendar events today.</div>"
+    else:
+        event_cards = []
+        for event in agenda.events:
+            details_html = ""
+            if event.details:
+                details_html = (
+                    f"<div class='calendar-details'>{escape(event.details)}</div>"
+                )
+            event_cards.append(
+                "<article class='calendar-event'>"
+                f"<div class='calendar-title'>{escape(event.title)}</div>"
+                f"<div class='calendar-when'>{escape(event.when)}</div>"
+                f"{details_html}"
+                "</article>"
+            )
+        body_html = f"<div class='calendar-list'>{''.join(event_cards)}</div>"
+
+    section_html = (
+        "<section class='calendar-section'>"
+        f"<h2>{escape(heading)}</h2>"
+        f"{body_html}"
+        "</section>"
+    )
+    if not include_styles:
+        return section_html
+    return _calendar_agenda_styles() + section_html
+
+
+def render_html_report(
+    summary: ScheduleSummary,
+    calendar_agenda: CalendarAgenda | None = None,
+) -> str:
     generated_at = datetime.now().strftime("%Y-%m-%d %I:%M %p")
     date_label = summary.report_date.strftime("%A, %B %-d, %Y")
     condensed = build_condensed_summary(summary)
     summary_table = render_summary_table_fragment(condensed)
+    calendar_html = ""
+    if calendar_agenda is not None:
+        calendar_html = render_calendar_agenda_fragment(calendar_agenda, include_styles=True)
 
     return f"""<!DOCTYPE html>
 <html lang="en">
@@ -160,6 +203,7 @@ def render_html_report(summary: ScheduleSummary) -> str:
   <div class="meta"><strong>{escape(date_label)}</strong> | Generated {escape(generated_at)}</div>
   <button class="noprint" onclick="window.print()">Print</button>
   {summary_table}
+  {calendar_html}
 </body>
 </html>
 """
@@ -221,6 +265,53 @@ def _summary_table_styles() -> str:
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+</style>
+"""
+
+
+def _calendar_agenda_styles() -> str:
+    return """
+<style>
+  .calendar-section {
+    margin-top: 18px;
+    padding: 18px;
+    background: white;
+    border: 1px solid #cfd8e3;
+    border-radius: 18px;
+  }
+  .calendar-section h2 {
+    margin: 0 0 14px;
+    font-size: 22px;
+    color: #132a3f;
+  }
+  .calendar-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 12px;
+  }
+  .calendar-event {
+    padding: 12px 14px;
+    border: 1px solid #d9e3ee;
+    border-radius: 14px;
+    background: #f7fafc;
+  }
+  .calendar-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+  .calendar-when {
+    font-size: 12px;
+    color: #35526f;
+    margin-bottom: 4px;
+  }
+  .calendar-details {
+    font-size: 12px;
+    color: #4a6178;
+  }
+  .calendar-empty {
+    font-weight: 600;
+    color: #5e6b7a;
   }
 </style>
 """

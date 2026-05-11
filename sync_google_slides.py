@@ -24,6 +24,9 @@ try:
     from library_schedule.config import load_config
     from library_schedule.debug import save_fetch_debug_artifacts
     from library_schedule.fetcher import AuthRequiredError, fetch_schedule_pages
+    from library_schedule.ics_calendar import (
+        fetch_calendar_agenda_bundle,
+    )
     from library_schedule.google_slides_apps_script import (
         sync_condensed_summary_via_apps_script,
     )
@@ -107,6 +110,15 @@ def main() -> int:
         return 1
 
     condensed = build_condensed_summary(summary)
+    calendar_agenda = None
+    if config.ics_calendars:
+        calendar_agenda, calendar_warnings = fetch_calendar_agenda_bundle(
+            config.ics_calendars,
+            summary.report_date,
+        )
+        for warning in calendar_warnings:
+            print(f"Warning: {warning}")
+
     try:
         if config.google_slides.apps_script_web_app_url:
             sync_result = sync_condensed_summary_via_apps_script(
@@ -114,9 +126,14 @@ def main() -> int:
                 config.google_slides,
                 output_dir=args.output_dir,
                 open_browser=not args.no_open_browser,
+                calendar_agenda=calendar_agenda,
             )
         else:
-            sync_result = sync_condensed_summary_to_slide(condensed, config.google_slides)
+            sync_result = sync_condensed_summary_to_slide(
+                condensed,
+                config.google_slides,
+                calendar_agenda=calendar_agenda,
+            )
     except (FileNotFoundError, ValueError) as exc:
         print(f"ERROR: {exc}")
         return 1
@@ -125,7 +142,10 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
     debug_dir = save_fetch_debug_artifacts(fetched_pages)
     out_path = output_dir / f"daily_schedule_{summary.report_date.isoformat()}.html"
-    out_path.write_text(render_html_report(summary), encoding="utf-8")
+    out_path.write_text(
+        render_html_report(summary, calendar_agenda=calendar_agenda),
+        encoding="utf-8",
+    )
 
     if config.google_slides.apps_script_web_app_url:
         print("Apps Script submit page ready.")

@@ -10,7 +10,7 @@ from library_schedule.google_slides_apps_script import (
     build_apps_script_payload,
     render_apps_script_submit_page,
 )
-from library_schedule.model import CondensedScheduleSummary, SummaryEntry
+from library_schedule.model import CalendarAgenda, CalendarEvent, CondensedScheduleSummary, SummaryEntry
 
 
 class GoogleSlidesAppsScriptTests(unittest.TestCase):
@@ -35,9 +35,24 @@ class GoogleSlidesAppsScriptTests(unittest.TestCase):
                 "MC C220.7": [],
             },
         )
+        self.calendar = CalendarAgenda(
+            report_date=date(2026, 5, 7),
+            source_name="Mpls Conf Room",
+            events=[
+                CalendarEvent(
+                    title="Homeroom 3rd hour planning",
+                    when="2:50 PM - 3:30 PM",
+                    details="Jen Wilson",
+                )
+            ],
+        )
 
     def test_builds_apps_script_payload(self) -> None:
-        payload = build_apps_script_payload(self.summary, self.config)
+        payload = build_apps_script_payload(
+            self.summary,
+            self.config,
+            calendar_agenda=self.calendar,
+        )
 
         self.assertEqual(
             payload["presentationId"],
@@ -48,9 +63,15 @@ class GoogleSlidesAppsScriptTests(unittest.TestCase):
         self.assertEqual(payload["reportDateLabel"], "Thursday, May 7, 2026")
         self.assertEqual(payload["rooms"][0]["entries"][0]["booking"], "Sam Albert")
         self.assertEqual(payload["rooms"][1]["entries"], [])
+        self.assertEqual(payload["calendar"]["sourceName"], "Mpls Conf Room")
+        self.assertEqual(payload["calendar"]["events"][0]["details"], "Jen Wilson")
 
     def test_renders_submit_page(self) -> None:
-        payload = build_apps_script_payload(self.summary, self.config)
+        payload = build_apps_script_payload(
+            self.summary,
+            self.config,
+            calendar_agenda=self.calendar,
+        )
         html = render_apps_script_submit_page(
             payload=payload,
             web_app_url=self.config.apps_script_web_app_url or "",
