@@ -1,0 +1,50 @@
+schedule_url: "http://intranet.ad.roseville.k12.mn.us/computerlab/reserve/"
+
+# Optional: set this to a CSS selector that targets the main schedule table.
+# Example: "#scheduleTable"
+schedule_table_selector: null
+
+# Remove non-period rows from top/bottom of parsed output.
+drop_first_period_rows: 3
+drop_last_period_rows: 1
+
+target_spaces:
+  - "MC C220.6"
+  - "MC C220.7"
+  - "MC C220.9"
+  - "MC Center"
+  - "MC Lab North"
+  - "MC Lab South"
+  - "MC Minneapolis"
+  - "MC St. Paul"
+
+# Optional alias text seen in table headers.
+room_aliases:
+  "MC Center":
+    - "MC Center"
+    - "Media Center"
+  "MC Lab North":
+    - "MC Lab North"
+    - "Lab North"
+  "MC Lab South":
+    - "MC Lab South"
+    - "Lab South"
+  "MC Minneapolis":
+    - "MC Minneapolis"
+    - "Minneapolis"
+  "MC St. Paul":
+    - "MC St. Paul"
+    - "St. Paul"
+
+auth:
+  storage_state_path: ".auth/storage_state.json"
+
+browser_timeout_ms: 45000
+default_headless: true
+
+google_slides:
+  presentation_url: "https://docs.google.com/presentation/d/12lNrWDhZ95yRpCrf2LoMvkxFhbHJz7WEUAv-asPhgdU/edit?slide=id.g3e7c148e447_1_0#slide=id.g3e7c148e447_1_0"
+  slide_index: 2
+  apps_script_web_app_url: ""
+  oauth_client_secret_path: "config/google_oauth_client_secret.json"
+  oauth_token_path: ".auth/google_slides_token.json"

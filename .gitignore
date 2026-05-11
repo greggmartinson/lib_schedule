@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.auth/
+output/
+config/settings.yaml
+config/google_oauth_client_secret.json
