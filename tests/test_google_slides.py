@@ -5,11 +5,13 @@ import unittest
 
 from library_schedule.booking_text import clean_booking_for_display
 from library_schedule.google_slides import (
+    _build_title_date_text,
+    _build_title_text,
     extract_presentation_id,
     format_calendar_card_text,
     format_room_card_text,
 )
-from library_schedule.model import CalendarAgenda, CalendarEvent, SummaryEntry
+from library_schedule.model import CalendarAgenda, CalendarEvent, CondensedScheduleSummary, SummaryEntry
 
 
 class GoogleSlidesTests(unittest.TestCase):
@@ -56,7 +58,20 @@ class GoogleSlidesTests(unittest.TestCase):
 
         self.assertEqual(
             format_calendar_card_text(agenda),
-            "Mpls Conf Room Events\nHomeroom 3rd hour planning\n2:50 PM - 3:30 PM | Jen Wilson",
+            "Mpls Conf Room Events\nHomeroom 3rd hour planning\n2:50 PM - 3:30 PM\nJen Wilson",
+        )
+
+    def test_formats_slide_title_and_date(self) -> None:
+        self.assertEqual(_build_title_text(), "Today's Guests")
+        self.assertEqual(
+            _build_title_date_text(
+                CondensedScheduleSummary(
+                    report_date=date(2026, 5, 11),
+                    spaces=[],
+                    by_space={},
+                )
+            ),
+            "Monday, May 11, 2026",
         )
 
     def test_strips_directory_style_suffixes(self) -> None:

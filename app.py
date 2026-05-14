@@ -7,7 +7,11 @@ import streamlit as st
 from library_schedule.condense import build_condensed_summary
 from library_schedule.config import load_config
 from library_schedule.debug import save_fetch_debug_artifacts
-from library_schedule.fetcher import AuthRequiredError, fetch_schedule_pages
+from library_schedule.fetcher import (
+    AuthRequiredError,
+    BrowserLaunchError,
+    fetch_schedule_pages,
+)
 from library_schedule.ics_calendar import (
     fetch_calendar_agenda_bundle,
 )
@@ -62,6 +66,10 @@ def main() -> None:
         except AuthRequiredError as exc:
             st.error(str(exc))
             st.code("python3 login_once.py")
+            return
+        except BrowserLaunchError as exc:
+            st.error(str(exc))
+            st.code(".venv/bin/playwright install chromium")
             return
         except ParseError as exc:
             st.error(str(exc))

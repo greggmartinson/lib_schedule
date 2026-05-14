@@ -2,7 +2,8 @@ const PRESENTATION_ID = '12lNrWDhZ95yRpCrf2LoMvkxFhbHJz7WEUAv-asPhgdU';
 const DEFAULT_SLIDE_INDEX = 2;
 const SLIDE_WIDTH = 960;
 const SLIDE_HEIGHT = 540;
-const MAX_CALENDAR_EVENTS = 4;
+const MAX_CALENDAR_EVENTS = 3;
+const RENDERER_VERSION = '2026-05-14-b';
 
 const COLORS = {
   background: '#FFFFFF',
@@ -22,7 +23,8 @@ function doGet() {
   return HtmlService.createHtmlOutput(
     '<h2>Library Schedule Slide Sync</h2>' +
       '<p>This Apps Script web app is ready.</p>' +
-      '<p>Run <code>python3 sync_google_slides.py</code> on your Mac to send the latest summary.</p>'
+      '<p>Run <code>python3 sync_google_slides.py</code> on your Mac to send the latest summary.</p>' +
+      '<p>Renderer version: <code>' + escapeHtml_(RENDERER_VERSION) + '</code></p>'
   );
 }
 
@@ -37,6 +39,9 @@ function doPost(e) {
         ' was updated for ' +
         escapeHtml_(result.reportDateLabel) +
         '.</p>' +
+        '<p>Renderer version: <code>' +
+        escapeHtml_(RENDERER_VERSION) +
+        '</code></p>' +
         '<p>You can close this tab and return to Google Slides.</p>'
     );
   } catch (error) {
@@ -76,10 +81,18 @@ function updateScheduleSlide_(payload) {
 
   const slide = slides[slideIndex - 1];
   clearSlide_(slide);
-  renderBackground_(slide);
-  renderAccentStripes_(slide);
-  renderTitle_(slide, reportDateLabel, generatedAtLabel);
-  renderScheduleTable_(slide, rooms, calendar);
+  try {
+    renderBackground_(slide);
+    renderAccentStripes_(slide);
+    renderTitle_(slide, reportDateLabel, generatedAtLabel);
+    renderScheduleTable_(slide, rooms, calendar);
+    renderRendererStamp_(slide);
+  } catch (error) {
+    clearSlide_(slide);
+    renderFailureSlide_(slide, error, reportDateLabel);
+    presentation.saveAndClose();
+    throw new Error('Renderer ' + RENDERER_VERSION + ' failed: ' + String(error));
+  }
   presentation.saveAndClose();
 
   return {
@@ -145,47 +158,153 @@ function renderAccentStripes_(slide) {
 }
 
 function renderTitle_(slide, reportDateLabel, generatedAtLabel) {
-  const titleBox = slide.insertTextBox("Today's Guests", 140, 42, 500, 56);
+  const titleBox = slide.insertTextBox("Today's Guests", 140, 36, 500, 50);
   styleTextBox_(titleBox, {
     fontFamily: 'Georgia',
     fontSize: 44,
     color: COLORS.title,
     boldUntil: 0,
   });
+
+  if (reportDateLabel) {
+    const dateBox = slide.insertTextBox(reportDateLabel, 144, 86, 360, 24);
+    styleTextBox_(dateBox, {
+      fontFamily: 'Arial',
+      fontSize: 18,
+      color: COLORS.title,
+      boldUntil: reportDateLabel.length,
+      boldFontSize: 18,
+      lineSpacing: 100,
+    });
+  }
+}
+
+function renderRendererStamp_(slide) {
+  const shape = slide.insertTextBox(
+    'Renderer ' + RENDERER_VERSION,
+    748,
+    500,
+    180,
+    18
+  );
+  styleTextBox_(shape, {
+    fontFamily: 'Arial',
+    fontSize: 8,
+    color: '#B07F4B',
+    boldUntil: 0,
+    lineSpacing: 100,
+  });
+}
+
+function renderFailureSlide_(slide, error, reportDateLabel) {
+  renderBackground_(slide);
+  const heading = slide.insertTextBox('Slide sync failed', 60, 70, 360, 36);
+  heading.getText().getTextStyle().setBold(true).setFontSize(22).setForegroundColor('#8B2E2E');
+
+  const details = slide.insertTextBox(
+    'Date: ' +
+      String(reportDateLabel || '') +
+      '\nRenderer: ' +
+      RENDERER_VERSION +
+      '\nError: ' +
+      String(error),
+    60,
+    120,
+    840,
+    220
+  );
+  details.getText().getTextStyle().setFontFamily('Arial').setFontSize(14).setForegroundColor('#333333');
 }
 
 function renderScheduleTable_(slide, rooms, calendar) {
-  const columns = 3;
-  const tableLeft = 18;
+  const tableLeft = 30;
   const tableTop = 120;
-  const tableWidth = 900;
-  const headerHeight = 62;
-  const bodyHeight = 74;
-  const cellWidth = tableWidth / columns;
-  const cards = rooms.slice();
-  if (calendar) {
-    cards.push({
-      name: formatCalendarHeading_(calendar),
-      calendar: calendar,
-    });
-  }
-  const rowGroups = Math.ceil(Math.max(cards.length, 1) / columns);
+  const tableWidth = 840;
+  const tableHeight = 356;
+  const gap = 10;
 
-  for (let row = 0; row < rowGroups; row += 1) {
+  if (!calendar) {
+    renderRoomGrid_(slide, rooms, tableLeft, tableTop, tableWidth, tableHeight, 4, gap);
+    return;
+  }
+
+  const calendarWidth = 220;
+  const roomGridWidth = tableWidth - calendarWidth - gap;
+  renderRoomGrid_(slide, rooms, tableLeft, tableTop, roomGridWidth, tableHeight, 4, gap);
+  renderCalendarPanel_(
+    slide,
+    calendar,
+    tableLeft + roomGridWidth + gap,
+    tableTop,
+    calendarWidth,
+    tableHeight
+  );
+}
+
+function renderRoomGrid_(slide, rooms, left, top, width, height, columns, gap) {
+  const cards = rooms.slice();
+  const rows = Math.ceil(Math.max(cards.length, 1) / columns);
+  const cellWidth = (width - gap * (columns - 1)) / columns;
+  const cellHeight = (height - gap * Math.max(rows - 1, 0)) / rows;
+  const headerHeight = 48;
+  const bodyHeight = cellHeight - headerHeight;
+
+  for (let row = 0; row < rows; row += 1) {
     for (let column = 0; column < columns; column += 1) {
       const card = cards[row * columns + column] || null;
-      const left = tableLeft + column * cellWidth;
-      const headerTop = tableTop + row * (headerHeight + bodyHeight);
+      const cellLeft = left + column * (cellWidth + gap);
+      const headerTop = top + row * (cellHeight + gap);
       const bodyTop = headerTop + headerHeight;
 
-      renderTableHeaderCell_(slide, left, headerTop, cellWidth, headerHeight, card);
-      renderTableBodyCell_(slide, left, bodyTop, cellWidth, bodyHeight, card);
+      renderTableHeaderCell_(
+        slide,
+        cellLeft,
+        headerTop,
+        cellWidth,
+        headerHeight,
+        card ? String(card.name || '') : ''
+      );
+      renderTableBodyCell_(
+        slide,
+        cellLeft,
+        bodyTop,
+        cellWidth,
+        bodyHeight,
+        card ? formatRoomBodyText_(card) : '',
+        {
+          fontSize: 15,
+          lineSpacing: 110,
+        }
+      );
     }
   }
 }
 
-function renderTableHeaderCell_(slide, left, top, width, height, card) {
-  const headerText = card ? String(card.name || '') : '';
+function renderCalendarPanel_(slide, calendar, left, top, width, height) {
+  const headerHeight = 48;
+  renderTableHeaderCell_(
+    slide,
+    left,
+    top,
+    width,
+    headerHeight,
+    formatCalendarHeading_(calendar)
+  );
+  renderTableBodyCell_(
+    slide,
+    left,
+    top + headerHeight,
+    width,
+    height - headerHeight,
+    formatCalendarBodyText_(calendar),
+    {
+      fontSize: 13,
+      lineSpacing: 104,
+    }
+  );
+}
+
+function renderTableHeaderCell_(slide, left, top, width, height, headerText) {
   const shape = slide.insertTextBox(headerText, left, top, width, height);
   shape.getFill().setSolidFill(COLORS.headerFill);
   shape.getBorder().getLineFill().setSolidFill(COLORS.divider);
@@ -200,15 +319,7 @@ function renderTableHeaderCell_(slide, left, top, width, height, card) {
   });
 }
 
-function renderTableBodyCell_(slide, left, top, width, height, card) {
-  let text = '';
-  if (card) {
-    if (card.calendar) {
-      text = formatCalendarBodyText_(card.calendar);
-    } else {
-      text = formatRoomBodyText_(card);
-    }
-  }
+function renderTableBodyCell_(slide, left, top, width, height, text, options) {
   const shape = slide.insertTextBox(text, left, top, width, height);
   shape.getFill().setSolidFill(COLORS.bodyFill);
   shape.getBorder().getLineFill().setSolidFill(COLORS.divider);
@@ -216,9 +327,10 @@ function renderTableBodyCell_(slide, left, top, width, height, card) {
 
   styleTextBox_(shape, {
     fontFamily: 'Arial',
-    fontSize: 15,
+    fontSize: (options && options.fontSize) || 15,
     color: COLORS.bodyText,
     boldUntil: 0,
+    lineSpacing: (options && options.lineSpacing) || 110,
   });
 }
 
@@ -261,13 +373,13 @@ function formatCalendarBodyText_(calendar) {
     }
     parts.push(title);
 
-    let detailLine = String((event && event.when) || '').trim();
+    const when = String((event && event.when) || '').trim();
     const details = String((event && event.details) || '').trim();
-    if (details) {
-      detailLine = detailLine ? detailLine + ' | ' + details : details;
+    if (when) {
+      parts.push(when);
     }
-    if (detailLine) {
-      parts.push(detailLine);
+    if (details) {
+      parts.push(details);
     }
     parts.push('');
   });
@@ -300,7 +412,7 @@ function styleTextBox_(shape, options) {
     textRange.getTextStyle().setForegroundColor(options.color);
   }
 
-  shape.getText().getParagraphStyle().setLineSpacing(110);
+  shape.getText().getParagraphStyle().setLineSpacing(options.lineSpacing || 110);
 
   const boldUntil = Number(options.boldUntil || 0);
   if (boldUntil > 0) {

@@ -19,7 +19,7 @@ def _missing_dependency_message(module_name: str) -> str:
 
 try:
     from library_schedule.config import load_config
-    from library_schedule.fetcher import login_once
+    from library_schedule.fetcher import BrowserLaunchError, login_once
 except ModuleNotFoundError as exc:
     if exc.name in {"playwright", "yaml"}:
         raise SystemExit(_missing_dependency_message(exc.name)) from exc
@@ -41,7 +41,11 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     config = load_config(args.config)
-    login_once(config)
+    try:
+        login_once(config)
+    except BrowserLaunchError as exc:
+        print(f"ERROR: {exc}")
+        return 1
     print(f"Saved authenticated session to: {config.auth_storage_state_path}")
     return 0
 

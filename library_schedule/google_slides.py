@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
 import re
 from pathlib import Path
 from uuid import uuid4
@@ -13,7 +12,7 @@ from .model import CalendarAgenda, CondensedScheduleSummary, SummaryEntry
 
 GOOGLE_SLIDES_SCOPES = ["https://www.googleapis.com/auth/presentations"]
 EMU_PER_PT = 12700
-SLIDE_EVENT_LIMIT = 4
+SLIDE_EVENT_LIMIT = 3
 
 
 @dataclass(frozen=True)
@@ -95,12 +94,26 @@ def build_slide_update_requests(
         left=28,
         top=18,
         width=page_width_pt - 56,
-        height=52,
-        text=_build_title_text(summary),
-        font_size=24,
-        bold_range=(0, len("Library Spaces Summary")),
+        height=42,
+        text=_build_title_text(),
+        font_size=28,
+        bold_range=(0, len("Today's Guests")),
     )
     requests.extend(title_box)
+    date_text = _build_title_date_text(summary)
+    requests.extend(
+        _textbox_request(
+            page_id=slide_id,
+            object_id=_new_object_id("schedule_date"),
+            left=32,
+            top=58,
+            width=340,
+            height=22,
+            text=date_text,
+            font_size=16,
+            bold_range=(0, len(date_text)),
+        )
+    )
 
     card_requests = _build_room_card_requests(
         slide_id=slide_id,
@@ -138,10 +151,10 @@ def format_calendar_card_text(
     parts = [heading]
     for event in agenda.events[:max_events]:
         parts.append(event.title)
-        detail_line = event.when
+        if event.when:
+            parts.append(event.when)
         if event.details:
-            detail_line = f"{detail_line} | {event.details}"
-        parts.append(detail_line)
+            parts.append(event.details)
         parts.append("")
     remaining = len(agenda.events) - max_events
     if remaining > 0:
@@ -149,10 +162,12 @@ def format_calendar_card_text(
     return "\n".join(parts).rstrip()
 
 
-def _build_title_text(summary: CondensedScheduleSummary) -> str:
-    date_text = summary.report_date.strftime("%A, %B %-d, %Y")
-    generated_text = datetime.now().strftime("Generated %I:%M %p").lstrip("0")
-    return f"Library Spaces Summary\n{date_text} | {generated_text}"
+def _build_title_text() -> str:
+    return "Today's Guests"
+
+
+def _build_title_date_text(summary: CondensedScheduleSummary) -> str:
+    return summary.report_date.strftime("%A, %B %-d, %Y")
 
 
 def _build_room_card_requests(
@@ -162,51 +177,106 @@ def _build_room_card_requests(
     page_height_pt: float,
     calendar_agenda: CalendarAgenda | None = None,
 ) -> list[dict]:
-    columns = 4 if calendar_agenda is None else 3
-    gutter = 12
-    margin_x = 28
+    gutter = 10
+    margin_x = 36
     top = 88
-    bottom_margin = 26
-    cards = [
-        (
-            room_name,
-            format_room_card_text(room_name, summary.by_space.get(room_name, [])),
-        )
-        for room_name in summary.spaces
-    ]
-    if calendar_agenda is not None:
-        cards.append(
-            (
-                f"{calendar_agenda.source_name} Events",
-                format_calendar_card_text(calendar_agenda),
+    bottom_margin = 34
+    content_height = page_height_pt - top - bottom_margin
+    content_width = page_width_pt - (margin_x * 2)
+    requests: list[dict] = []
+
+    if calendar_agenda is None:
+        requests.extend(
+            _build_card_grid_requests(
+                slide_id=slide_id,
+                cards=[
+                    (
+                        room_name,
+                        format_room_card_text(room_name, summary.by_space.get(room_name, [])),
+                    )
+                    for room_name in summary.spaces
+                ],
+                left=margin_x,
+                top=top,
+                width=content_width,
+                height=content_height,
+                columns=4,
+                gutter=gutter,
+                font_size=13,
+                object_prefix="room",
             )
         )
+        return requests
 
+    calendar_width = min(224.0, max(208.0, content_width * 0.25))
+    room_width = content_width - calendar_width - gutter
+    requests.extend(
+        _build_card_grid_requests(
+            slide_id=slide_id,
+            cards=[
+                (
+                    room_name,
+                    format_room_card_text(room_name, summary.by_space.get(room_name, [])),
+                )
+                for room_name in summary.spaces
+            ],
+            left=margin_x,
+            top=top,
+            width=room_width,
+            height=content_height,
+            columns=4,
+            gutter=gutter,
+            font_size=13,
+            object_prefix="room",
+        )
+    )
+    requests.extend(
+        _textbox_request(
+            page_id=slide_id,
+            object_id=_new_object_id("calendar"),
+            left=margin_x + room_width + gutter,
+            top=top,
+            width=calendar_width,
+            height=content_height,
+            text=format_calendar_card_text(calendar_agenda),
+            font_size=12,
+            bold_range=(0, len(f"{calendar_agenda.source_name} Events")),
+        )
+    )
+    return requests
+
+
+def _build_card_grid_requests(
+    slide_id: str,
+    cards: list[tuple[str, str]],
+    left: float,
+    top: float,
+    width: float,
+    height: float,
+    columns: int,
+    gutter: float,
+    font_size: int,
+    object_prefix: str,
+) -> list[dict]:
     rows = max(1, (len(cards) + columns - 1) // columns)
-    usable_width = page_width_pt - (margin_x * 2) - (gutter * (columns - 1))
-    card_width = usable_width / columns
-    usable_height = page_height_pt - top - bottom_margin - (gutter * max(rows - 1, 0))
-    card_height = usable_height / rows
+    card_width = (width - (gutter * (columns - 1))) / columns
+    card_height = (height - (gutter * max(rows - 1, 0))) / rows
 
     requests: list[dict] = []
     for index, (card_title, card_text) in enumerate(cards):
         col = index % columns
         row = index // columns
-        left = margin_x + col * (card_width + gutter)
-        top_pos = top + row * (card_height + gutter)
-        object_id = _new_object_id(f"room_{index + 1}")
-        bold_range = (0, len(card_title))
         requests.extend(
             _textbox_request(
                 page_id=slide_id,
-                object_id=object_id,
-                left=left,
-                top=top_pos,
+                object_id=_new_object_id(f"{object_prefix}_{index + 1}"),
+                left=left + col * (card_width + gutter),
+                top=top + row * (card_height + gutter),
                 width=card_width,
                 height=card_height,
                 text=card_text,
-                font_size=13,
-                bold_range=bold_range,
+                font_size=font_size,
+                bold_range=(0, len(card_title)),
             )
         )
     return requests

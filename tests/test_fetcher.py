@@ -6,6 +6,7 @@ import unittest
 from library_schedule.config import AppConfig
 from library_schedule.fetcher import (
     _find_link_for_aliases,
+    _format_browser_launch_error,
     _looks_like_schedule_page,
     _wait_for_authenticated_schedule_page,
 )
@@ -109,6 +110,17 @@ class FetcherTests(unittest.TestCase):
                 return response
 
         _wait_for_authenticated_schedule_page(FakePage(), self.config)
+
+    def test_formats_missing_playwright_browser_error(self) -> None:
+        error = PlaywrightError(
+            "BrowserType.launch: Executable doesn't exist at "
+            "/Users/example/Library/Caches/ms-playwright/chromium-1208/chrome"
+        )
+
+        message = _format_browser_launch_error(error)
+
+        self.assertIn("Playwright browser runtime is missing.", message)
+        self.assertIn(".venv/bin/playwright install chromium", message)
 
 
 if __name__ == "__main__":

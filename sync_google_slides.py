@@ -23,7 +23,11 @@ try:
     from library_schedule.condense import build_condensed_summary
     from library_schedule.config import load_config
     from library_schedule.debug import save_fetch_debug_artifacts
-    from library_schedule.fetcher import AuthRequiredError, fetch_schedule_pages
+    from library_schedule.fetcher import (
+        AuthRequiredError,
+        BrowserLaunchError,
+        fetch_schedule_pages,
+    )
     from library_schedule.ics_calendar import (
         fetch_calendar_agenda_bundle,
     )
@@ -105,7 +109,7 @@ def main() -> int:
             drop_first_rows=config.drop_first_period_rows,
             drop_last_rows=config.drop_last_period_rows,
         )
-    except (AuthRequiredError, ParseError) as exc:
+    except (AuthRequiredError, BrowserLaunchError, ParseError) as exc:
         print(f"ERROR: {exc}")
         return 1
 

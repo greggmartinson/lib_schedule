@@ -16,6 +16,10 @@ class AuthRequiredError(RuntimeError):
     pass
 
 
+class BrowserLaunchError(RuntimeError):
+    pass
+
+
 @dataclass(frozen=True)
 class _RoomSelectorMatch:
     index: int
@@ -33,7 +37,7 @@ def login_once(config: AppConfig) -> None:
     storage_path.parent.mkdir(parents=True, exist_ok=True)
 
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=False)
+        browser = _launch_chromium_browser(playwright, headless=False)
         context = browser.new_context()
         page = context.new_page()
         page.goto(config.schedule_url, timeout=config.browser_timeout_ms)
@@ -69,7 +73,7 @@ def fetch_schedule_pages(
 
     use_headless = config.default_headless if headless is None else headless
     with sync_playwright() as playwright:
-        browser = playwright.chromium.launch(headless=use_headless)
+        browser = _launch_chromium_browser(playwright, headless=use_headless)
         context = browser.new_context(storage_state=str(storage_path))
         page = context.new_page()
         page.goto(config.schedule_url, timeout=config.browser_timeout_ms)
@@ -91,6 +95,25 @@ def fetch_schedule_pages(
         )
 
     return pages
+
+
+def _launch_chromium_browser(playwright, headless: bool):
+    try:
+        return playwright.chromium.launch(headless=headless)
+    except PlaywrightError as exc:
+        raise BrowserLaunchError(_format_browser_launch_error(exc)) from exc
+
+
+def _format_browser_launch_error(exc: PlaywrightError) -> str:
+    message = str(exc)
+    if "Executable doesn't exist" in message:
+        return (
+            "Playwright browser runtime is missing.\n"
+            "Run this once to reinstall it:\n"
+            "  .venv/bin/playwright install chromium\n"
+            "Then rerun the same command."
+        )
+    return f"Unable to launch Playwright Chromium: {message}"
 
 
 def _looks_like_login_page(html: str) -> bool:
