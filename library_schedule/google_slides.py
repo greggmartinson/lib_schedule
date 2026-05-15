@@ -91,29 +91,15 @@ def build_slide_update_requests(
     title_box = _textbox_request(
         page_id=slide_id,
         object_id=_new_object_id("schedule_title"),
-        left=28,
-        top=18,
-        width=page_width_pt - 56,
-        height=42,
-        text=_build_title_text(),
-        font_size=28,
-        bold_range=(0, len("Today's Guests")),
+        left=140,
+        top=34,
+        width=520,
+        height=30,
+        text=_build_title_text(summary),
+        font_size=24,
+        bold_range=(0, len(_build_title_text(summary))),
     )
     requests.extend(title_box)
-    date_text = _build_title_date_text(summary)
-    requests.extend(
-        _textbox_request(
-            page_id=slide_id,
-            object_id=_new_object_id("schedule_date"),
-            left=32,
-            top=58,
-            width=340,
-            height=22,
-            text=date_text,
-            font_size=16,
-            bold_range=(0, len(date_text)),
-        )
-    )
 
     card_requests = _build_room_card_requests(
         slide_id=slide_id,
@@ -162,11 +148,7 @@ def format_calendar_card_text(
     return "\n".join(parts).rstrip()
 
 
-def _build_title_text() -> str:
-    return "Today's Guests"
-
-
-def _build_title_date_text(summary: CondensedScheduleSummary) -> str:
+def _build_title_text(summary: CondensedScheduleSummary) -> str:
     return summary.report_date.strftime("%A, %B %-d, %Y")
 
 
@@ -178,11 +160,12 @@ def _build_room_card_requests(
     calendar_agenda: CalendarAgenda | None = None,
 ) -> list[dict]:
     gutter = 10
-    margin_x = 36
-    top = 88
-    bottom_margin = 34
+    top = 86
+    table_width = min(800.0, page_width_pt - 84)
+    left = (page_width_pt - table_width) / 2
+    bottom_margin = 62
     content_height = page_height_pt - top - bottom_margin
-    content_width = page_width_pt - (margin_x * 2)
+    content_width = table_width
     requests: list[dict] = []
 
     if calendar_agenda is None:
@@ -196,20 +179,20 @@ def _build_room_card_requests(
                     )
                     for room_name in summary.spaces
                 ],
-                left=margin_x,
+                left=left,
                 top=top,
                 width=content_width,
                 height=content_height,
                 columns=4,
                 gutter=gutter,
-                font_size=13,
+                font_size=12,
                 object_prefix="room",
             )
         )
         return requests
 
-    calendar_width = min(224.0, max(208.0, content_width * 0.25))
-    room_width = content_width - calendar_width - gutter
+    calendar_height = 132.0
+    room_height = content_height - calendar_height - gutter
     requests.extend(
         _build_card_grid_requests(
             slide_id=slide_id,
@@ -220,13 +203,13 @@ def _build_room_card_requests(
                 )
                 for room_name in summary.spaces
             ],
-            left=margin_x,
+            left=left,
             top=top,
-            width=room_width,
-            height=content_height,
+            width=content_width,
+            height=room_height,
             columns=4,
             gutter=gutter,
-            font_size=13,
+            font_size=12,
             object_prefix="room",
         )
     )
@@ -234,12 +217,12 @@ def _build_room_card_requests(
         _textbox_request(
             page_id=slide_id,
             object_id=_new_object_id("calendar"),
-            left=margin_x + room_width + gutter,
-            top=top,
-            width=calendar_width,
-            height=content_height,
+            left=left,
+            top=top + room_height + gutter,
+            width=content_width,
+            height=calendar_height,
             text=format_calendar_card_text(calendar_agenda),
-            font_size=12,
+            font_size=11,
             bold_range=(0, len(f"{calendar_agenda.source_name} Events")),
         )
     )

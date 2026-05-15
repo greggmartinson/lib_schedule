@@ -3,7 +3,7 @@ const DEFAULT_SLIDE_INDEX = 2;
 const SLIDE_WIDTH = 960;
 const SLIDE_HEIGHT = 540;
 const MAX_CALENDAR_EVENTS = 3;
-const RENDERER_VERSION = '2026-05-14-b';
+const RENDERER_VERSION = '2026-05-15-a';
 
 const COLORS = {
   background: '#FFFFFF',
@@ -158,25 +158,16 @@ function renderAccentStripes_(slide) {
 }
 
 function renderTitle_(slide, reportDateLabel, generatedAtLabel) {
-  const titleBox = slide.insertTextBox("Today's Guests", 140, 36, 500, 50);
+  const titleText = reportDateLabel || "Today's Guests";
+  const titleBox = slide.insertTextBox(titleText, 140, 38, 520, 30);
   styleTextBox_(titleBox, {
-    fontFamily: 'Georgia',
-    fontSize: 44,
+    fontFamily: 'Arial',
+    fontSize: 24,
     color: COLORS.title,
-    boldUntil: 0,
+    boldUntil: titleText.length,
+    boldFontSize: 24,
+    lineSpacing: 100,
   });
-
-  if (reportDateLabel) {
-    const dateBox = slide.insertTextBox(reportDateLabel, 144, 86, 360, 24);
-    styleTextBox_(dateBox, {
-      fontFamily: 'Arial',
-      fontSize: 18,
-      color: COLORS.title,
-      boldUntil: reportDateLabel.length,
-      boldFontSize: 18,
-      lineSpacing: 100,
-    });
-  }
 }
 
 function renderRendererStamp_(slide) {
@@ -217,10 +208,10 @@ function renderFailureSlide_(slide, error, reportDateLabel) {
 }
 
 function renderScheduleTable_(slide, rooms, calendar) {
-  const tableLeft = 30;
-  const tableTop = 120;
-  const tableWidth = 840;
-  const tableHeight = 356;
+  const tableLeft = 42;
+  const tableTop = 86;
+  const tableWidth = 800;
+  const tableHeight = 392;
   const gap = 10;
 
   if (!calendar) {
@@ -228,16 +219,16 @@ function renderScheduleTable_(slide, rooms, calendar) {
     return;
   }
 
-  const calendarWidth = 220;
-  const roomGridWidth = tableWidth - calendarWidth - gap;
-  renderRoomGrid_(slide, rooms, tableLeft, tableTop, roomGridWidth, tableHeight, 4, gap);
+  const calendarHeight = 132;
+  const roomGridHeight = tableHeight - calendarHeight - gap;
+  renderRoomGrid_(slide, rooms, tableLeft, tableTop, tableWidth, roomGridHeight, 4, gap);
   renderCalendarPanel_(
     slide,
     calendar,
-    tableLeft + roomGridWidth + gap,
-    tableTop,
-    calendarWidth,
-    tableHeight
+    tableLeft,
+    tableTop + roomGridHeight + gap,
+    tableWidth,
+    calendarHeight
   );
 }
 
@@ -246,7 +237,7 @@ function renderRoomGrid_(slide, rooms, left, top, width, height, columns, gap) {
   const rows = Math.ceil(Math.max(cards.length, 1) / columns);
   const cellWidth = (width - gap * (columns - 1)) / columns;
   const cellHeight = (height - gap * Math.max(rows - 1, 0)) / rows;
-  const headerHeight = 48;
+  const headerHeight = 42;
   const bodyHeight = cellHeight - headerHeight;
 
   for (let row = 0; row < rows; row += 1) {
@@ -272,8 +263,8 @@ function renderRoomGrid_(slide, rooms, left, top, width, height, columns, gap) {
         bodyHeight,
         card ? formatRoomBodyText_(card) : '',
         {
-          fontSize: 15,
-          lineSpacing: 110,
+          fontSize: 13,
+          lineSpacing: 105,
         }
       );
     }
@@ -298,8 +289,8 @@ function renderCalendarPanel_(slide, calendar, left, top, width, height) {
     height - headerHeight,
     formatCalendarBodyText_(calendar),
     {
-      fontSize: 13,
-      lineSpacing: 104,
+      fontSize: 12,
+      lineSpacing: 102,
     }
   );
 }
@@ -312,10 +303,10 @@ function renderTableHeaderCell_(slide, left, top, width, height, headerText) {
 
   styleTextBox_(shape, {
     fontFamily: 'Arial',
-    fontSize: 16,
+    fontSize: 15,
     color: COLORS.headerText,
     boldUntil: headerText.length,
-    boldFontSize: 16,
+    boldFontSize: 15,
   });
 }
 

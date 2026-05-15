@@ -5,3 +5,6 @@ __pycache__/
 output/
 config/settings.yaml
 config/google_oauth_client_secret.json
+dist/
+DesktopOrganizerMac/.build/
+DesktopOrganizerMac/.swiftpm/

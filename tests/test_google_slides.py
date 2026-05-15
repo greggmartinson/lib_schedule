@@ -5,7 +5,6 @@ import unittest
 
 from library_schedule.booking_text import clean_booking_for_display
 from library_schedule.google_slides import (
-    _build_title_date_text,
     _build_title_text,
     extract_presentation_id,
     format_calendar_card_text,
@@ -62,15 +61,13 @@ class GoogleSlidesTests(unittest.TestCase):
         )
 
     def test_formats_slide_title_and_date(self) -> None:
-        self.assertEqual(_build_title_text(), "Today's Guests")
+        summary = CondensedScheduleSummary(
+            report_date=date(2026, 5, 11),
+            spaces=[],
+            by_space={},
+        )
         self.assertEqual(
-            _build_title_date_text(
-                CondensedScheduleSummary(
-                    report_date=date(2026, 5, 11),
-                    spaces=[],
-                    by_space={},
-                )
-            ),
+            _build_title_text(summary),
             "Monday, May 11, 2026",
         )
 
